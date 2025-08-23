@@ -2,11 +2,6 @@ import streamlit as st
 import calendar
 import datetime
 import os
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib import colors
-from reportlab.lib.units import inch
 import io
 
 # Define Expense class
@@ -68,114 +63,130 @@ def generate_pdf_report(expenses, budget, file_path):
     if not expenses:
         return None
     
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter)
-    story = []
-    
-    # Styles
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=18,
-        spaceAfter=30,
-        alignment=1,  # Center alignment
-        fontName='Helvetica-Bold'
-    )
-    
-    # Title
-    title = Paragraph("Personal Expense Tracker Report", title_style)
-    story.append(title)
-    story.append(Spacer(1, 20))
-    
-    # Summary section
-    total_spent = sum(exp.amount for exp in expenses)
-    remaining = budget - total_spent
-    
-    summary_data = [
-        ["Monthly Budget", f"Rs.{budget:.2f}"],
-        ["Total Spent", f"Rs.{total_spent:.2f}"],
-        ["Remaining Budget", f"Rs.{remaining:.2f}"],
-        ["Generated Date", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")]
-    ]
-    
-    summary_table = Table(summary_data, colWidths=[2.5*inch, 2.5*inch])
-    summary_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 12),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.lightblue),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 1), (-1, -1), 11)
-    ]))
-    story.append(summary_table)
-    story.append(Spacer(1, 25))
-    
-    # Category totals
-    category_totals = {}
-    for exp in expenses:
-        category_totals[exp.category] = category_totals.get(exp.category, 0) + exp.amount
-    
-    if category_totals:
-        cat_title = Paragraph("Expenses by Category", styles['Heading2'])
-        story.append(cat_title)
-        story.append(Spacer(1, 15))
+    try:
+        buffer = io.BytesIO()
+        # ReportLab imports are now local to this function
+        from reportlab.lib.pagesizes import letter
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib import colors
+        from reportlab.lib.units import inch
+
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        story = []
         
-        cat_data = [["Category", "Total Amount"]]
-        for category, total in category_totals.items():
-            # Clean category name by removing emojis
-            clean_category = category.replace('🍔', '').replace('🏡', '').replace('💼', '').replace('🎉', '').replace('✈️', '').replace('✨', '').strip()
-            cat_data.append([clean_category, f"Rs.{total:.2f}"])
+        # Styles
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=18,
+            spaceAfter=30,
+            alignment=1,  # Center alignment
+            fontName='Helvetica-Bold'
+        )
         
-        cat_table = Table(cat_data, colWidths=[3.5*inch, 2*inch])
-        cat_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.darkgreen),
+        # Title
+        title = Paragraph("Personal Expense Tracker Report", title_style)
+        story.append(title)
+        story.append(Spacer(1, 20))
+        
+        # Summary section
+        total_spent = sum(exp.amount for exp in expenses)
+        remaining = budget - total_spent
+        
+        summary_data = [
+            ["Monthly Budget", f"Rs.{budget:.2f}"],
+            ["Total Spent", f"Rs.{total_spent:.2f}"],
+            ["Remaining Budget", f"Rs.{remaining:.2f}"],
+            ["Generated Date", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")]
+        ]
+        
+        summary_table = Table(summary_data, colWidths=[2.5*inch, 2.5*inch])
+        summary_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 12),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.lightgreen),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.lightblue),
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
             ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
             ('FONTSIZE', (0, 1), (-1, -1), 11)
         ]))
-        story.append(cat_table)
+        story.append(summary_table)
         story.append(Spacer(1, 25))
-    
-    # Individual expenses
-    exp_title = Paragraph("Individual Expenses", styles['Heading2'])
-    story.append(exp_title)
-    story.append(Spacer(1, 15))
-    
-    exp_data = [["Name", "Category", "Amount"]]
-    for exp in expenses:
-        # Clean category name by removing emojis
-        clean_category = exp.category.replace('🍔', '').replace('🏡', '').replace('💼', '').replace('🎉', '').replace('✈️', '').replace('✨', '').strip()
-        exp_data.append([exp.name, clean_category, f"Rs.{exp.amount:.2f}"])
-    
-    exp_table = Table(exp_data, colWidths=[2.5*inch, 2*inch, 1.5*inch])
-    exp_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.darkred),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 12),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.lightcoral),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 1), (-1, -1), 11)
-    ]))
-    story.append(exp_table)
-    
-    doc.build(story)
-    buffer.seek(0)
-    return buffer
+        
+        # Category totals
+        category_totals = {}
+        for exp in expenses:
+            category_totals[exp.category] = category_totals.get(exp.category, 0) + exp.amount
+        
+        if category_totals:
+            cat_title = Paragraph("Expenses by Category", styles['Heading2'])
+            story.append(cat_title)
+            story.append(Spacer(1, 15))
+            
+            cat_data = [["Category", "Total Amount"]]
+            for category, total in category_totals.items():
+                # Clean category name by removing emojis
+                clean_category = category.replace('🍔', '').replace('🏡', '').replace('💼', '').replace('🎉', '').replace('✈️', '').replace('✨', '').strip()
+                cat_data.append([clean_category, f"Rs.{total:.2f}"])
+            
+            cat_table = Table(cat_data, colWidths=[3.5*inch, 2*inch])
+            cat_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.darkgreen),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 12),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.lightgreen),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 11)
+            ]))
+            story.append(cat_table)
+            story.append(Spacer(1, 25))
+        
+        # Individual expenses
+        exp_title = Paragraph("Individual Expenses", styles['Heading2'])
+        story.append(exp_title)
+        story.append(Spacer(1, 15))
+        
+        exp_data = [["Name", "Category", "Amount"]]
+        for exp in expenses:
+            # Clean category name by removing emojis
+            clean_category = exp.category.replace('🍔', '').replace('🏡', '').replace('💼', '').replace('🎉', '').replace('✈️', '').replace('✨', '').strip()
+            exp_data.append([exp.name, clean_category, f"Rs.{exp.amount:.2f}"])
+        
+        exp_table = Table(exp_data, colWidths=[2.5*inch, 2*inch, 1.5*inch])
+        exp_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.darkred),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.lightcoral),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 11)
+        ]))
+        story.append(exp_table)
+        
+        doc.build(story)
+        buffer.seek(0)
+        return buffer
+        
+    except ImportError:
+        st.error("❌ PDF generation is not available. The 'reportlab' package is required for PDF export.")
+        st.info("💡 To enable PDF export, install reportlab: pip install reportlab")
+        return None
+    except Exception as e:
+        st.error(f"❌ Error generating PDF: {str(e)}")
+        return None
 
 # Main Streamlit App
 def main():
@@ -214,14 +225,18 @@ def main():
 
     # Generate PDF Report Button
     if st.button("📄 Generate PDF Report"):
-        pdf_buffer = generate_pdf_report(expenses, budget, file_path)
-        if pdf_buffer:
-            st.download_button(
-                label="Download PDF Report",
-                data=pdf_buffer,
-                file_name="expense_report.pdf",
-                mime="application/pdf"
-            )
+        if not expenses:
+            st.warning("⚠️ No expenses to generate report for. Please add some expenses first.")
+        else:
+            pdf_buffer = generate_pdf_report(expenses, budget, file_path)
+            if pdf_buffer:
+                st.download_button(
+                    label="Download PDF Report",
+                    data=pdf_buffer,
+                    file_name="expense_report.pdf",
+                    mime="application/pdf"
+                )
+            # Error messages are already handled in the generate_pdf_report function
 
 if __name__ == "__main__":
     main()
